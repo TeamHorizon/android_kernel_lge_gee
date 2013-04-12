@@ -274,8 +274,7 @@ u32 rotator_allocate_2pass_buf(struct rot_buf_type *rot_buf, int s_ndx)
 		pr_info("%s:%d ion based allocation\n",
 			__func__, __LINE__);
 		rot_buf->ihdl = ion_alloc(mrd->client, buffer_size, SZ_4K,
-			mrd->rot_session[s_ndx]->mem_hid,
-			mrd->rot_session[s_ndx]->mem_hid & ION_SECURE);
+			mrd->rot_session[s_ndx]->mem_hid, 0);
 		if (!IS_ERR_OR_NULL(rot_buf->ihdl)) {
 			if (rot_iommu_split_domain) {
 				if (ion_map_iommu(mrd->client, rot_buf->ihdl,
@@ -1345,10 +1344,12 @@ static int msm_rotator_ycxcx_h2v2_2pass(struct msm_rotator_img_info *info,
 
 	msm_rotator_dev->processing = 1;
 	iowrite32(0x1, MSM_ROTATOR_START);
+	mutex_unlock(&msm_rotator_dev->rotator_lock);
 	/* End of Pass-1 */
 	wait_event(msm_rotator_dev->wq,
 		   (msm_rotator_dev->processing == 0));
 	/* Beginning of Pass-2 */
+	mutex_lock(&msm_rotator_dev->rotator_lock);
 	status = (unsigned char)ioread32(MSM_ROTATOR_INTR_STATUS);
 	if ((status & 0x03) != 0x01) {
 		pr_err("%s(): AXI Bus Error, issuing SW_RESET\n",
@@ -2414,10 +2415,8 @@ static int msm_rotator_start(unsigned long arg,
 	case MDP_Y_CRCB_H2V2_TILE:
 	case MDP_Y_CBCR_H2V2_TILE:
 		if (rotator_hw_revision >= ROTATOR_REVISION_V2) {
-			if (info.downscale_ratio &&
-					(info.rotations & MDP_ROT_90)) {
-				fast_yuv_en = !fast_yuv_invalid_size_checker(
-						0,
+			fast_yuv_en = !fast_yuv_invalid_size_checker(
+						info.rotations,
 						info.src.width,
 						info.src_rect.w >>
 							info.downscale_ratio,
@@ -2439,17 +2438,6 @@ static int msm_rotator_start(unsigned long arg,
 						dst_h,
 						dst_w,
 						is_planar420);
-			} else {
-				fast_yuv_en = !fast_yuv_invalid_size_checker(
-						info.rotations,
-						info.src.width,
-						dst_w,
-						info.src.height,
-						dst_h,
-						dst_w,
-						is_planar420);
-			}
-
 			if (fast_yuv_en && info.downscale_ratio &&
 				(info.rotations & MDP_ROT_90))
 					enable_2pass = 1;
@@ -2563,12 +2551,10 @@ static int msm_rotator_start(unsigned long arg,
 		if (!IS_ERR_OR_NULL(mrd->client)) {
 			if (rot_session->img_info.secure) {
 				rot_session->mem_hid &= ~BIT(ION_IOMMU_HEAP_ID);
-				rot_session->mem_hid |= BIT(ION_CP_MM_HEAP_ID);
 				rot_session->mem_hid |= ION_SECURE;
 			} else {
-				rot_session->mem_hid &= ~BIT(ION_CP_MM_HEAP_ID);
-				rot_session->mem_hid &= ~ION_SECURE;
 				rot_session->mem_hid |= BIT(ION_IOMMU_HEAP_ID);
+				rot_session->mem_hid &= ~ION_SECURE;
 			}
 		}
 
