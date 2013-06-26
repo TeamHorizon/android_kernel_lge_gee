@@ -2414,8 +2414,10 @@ static int msm_rotator_start(unsigned long arg,
 	case MDP_Y_CRCB_H2V2_TILE:
 	case MDP_Y_CBCR_H2V2_TILE:
 		if (rotator_hw_revision >= ROTATOR_REVISION_V2) {
-			fast_yuv_en = !fast_yuv_invalid_size_checker(
-						info.rotations,
+			if (info.downscale_ratio &&
+					(info.rotations & MDP_ROT_90)) {
+				fast_yuv_en = !fast_yuv_invalid_size_checker(
+						0,
 						info.src.width,
 						info.src_rect.w >>
 							info.downscale_ratio,
@@ -2437,6 +2439,17 @@ static int msm_rotator_start(unsigned long arg,
 						dst_h,
 						dst_w,
 						is_planar420);
+			} else {
+				fast_yuv_en = !fast_yuv_invalid_size_checker(
+						info.rotations,
+						info.src.width,
+						dst_w,
+						info.src.height,
+						dst_h,
+						dst_w,
+						is_planar420);
+			}
+
 			if (fast_yuv_en && info.downscale_ratio &&
 				(info.rotations & MDP_ROT_90))
 					enable_2pass = 1;
