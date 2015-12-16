@@ -1755,7 +1755,7 @@ static void __pm8921_charger_vbus_draw(unsigned int mA)
 			}
 		}
 		rc = pm_chg_iusbmax_set(the_chip, i);
-		pr_info("charge curent index => %d\n", i);
+//		pr_info("charge curent index => %d\n", i);
 #else
 		rc = pm_chg_iusbmax_set(the_chip, i);
 #endif
@@ -2589,8 +2589,8 @@ static void vin_collapse_check_worker(struct work_struct *work)
 		decrease_usb_ma_value(&usb_target_ma);
 		/* reset here, increase in unplug_check_worker */
 		__pm8921_charger_vbus_draw(USB_WALL_THRESHOLD_MA);
-		pr_debug("usb_now=%d, usb_target = %d\n",
-				USB_WALL_THRESHOLD_MA, usb_target_ma);
+//		pr_debug("usb_now=%d, usb_target = %d\n",
+//				USB_WALL_THRESHOLD_MA, usb_target_ma);
 	} else {
 		handle_usb_insertion_removal(chip);
 	}
